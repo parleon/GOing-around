@@ -18,8 +18,8 @@ type process_info struct {
 }
 
 func process_message(message string) string {
-	mparsed := strings.SplitN(message, " ", 3)
-	return `Recieved "` + mparsed[2] + `" from process ` + mparsed[0] + `, system time is` + mparsed[1]  
+	mparsed := strings.SplitN(message, " ", 2)
+	return `Recieved "` + mparsed[1] + `" from process ` + mparsed[0] + `, system time is` +  time.Now().String()
 }
 
 func process_send(message string) (string, string) {
@@ -64,7 +64,7 @@ func initialize_source(info process_info) net.Listener {
 }
 
 func initialize_outgoing(info process_info) net.Conn {
-	conn, err := net.Dial("tcp", "golang.org:80")
+	conn, err := net.Dial("tcp", info.ip + ":" + info.port)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func main() {
 	source_server := initialize_source(process_infomap[self])
 	defer source_server.Close()
 
-	// initialize a map of outgoing connections for each non-source process id
+	// initialize an empty map to store active outgoing connections
 	outgoing := make(map[string]net.Conn)
 	/*for key, value := range process_infomap {
 		if key != self {
@@ -144,7 +144,7 @@ func main() {
 		reader := bufio.NewReader(os.Stdin)
 		text, _ := reader.ReadString('\n')
 		going_to, text := process_send(text)
-
+		text = self + " " + text
 		go func () {
 			if _, ok := outgoing[going_to]; !ok {
 				outgoing[going_to] = initialize_outgoing(process_infomap[going_to])
