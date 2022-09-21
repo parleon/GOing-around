@@ -2,16 +2,32 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"log"
+	"math/rand"
 	"net"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type process_info struct {
 	ip   string
 	port string
+}
+
+func process_message(message string) string {
+	mparsed := strings.SplitN(message, " ", 3)
+	return `Recieved "` + mparsed[2] + `" from process ` + mparsed[0] + `, system time is` + mparsed[1]  
+}
+
+func process_send(message string) (string, string) {
+	message = strings.TrimSuffix(message, "\n")
+	mparsed := strings.SplitN(message, " ", 3)
+	
+	fmt.Println(mparsed[2] + mparsed[1] + mparsed[0])
+	return mparsed[1], mparsed[2]
 }
 
 func unicast_send(destination net.Conn, message string) {
@@ -21,17 +37,20 @@ func unicast_send(destination net.Conn, message string) {
 	}
 }
 
-// assigns connections to individual reader goroutines that route messages into the propper channel
-func unicast_recieve(source net.Listener, message_channels map[string]chan []byte) {
+// assigns connections to individual reader goroutines that route messages into the proper channel
+func unicast_recieve(source net.Listener) {
 	for {
 		conn, err := source.Accept()
 		if err != nil {
 			log.Fatal(err)
 		}
-		
-		go func(conn net.Conn, message_channels map[string]chan []byte) {
-			conn.Read(<-message_channels["PLACEHOLDER"])
-		}(conn, message_channels)
+
+		go func(conn net.Conn) {
+			for {
+				message, _ := bufio.NewReader(conn).ReadString('\n')
+				fmt.Println(process_message(message))
+			}
+		}(conn)
 
 	}
 }
@@ -55,7 +74,7 @@ func initialize_outgoing(info process_info) net.Conn {
 // parse_config takes the path pointing to a config file and translates it into a map indexed by process id containing process_info structs
 func parse_config(path string) (map[string]process_info, []int) {
 	// initialize empty proccess map
-	var processes map[string]process_info
+	processes := make(map[string]process_info)
 
 	// open config file and initialize a scanner
 	file, err := os.Open(path)
@@ -100,7 +119,7 @@ func main() {
 	// get procress_info map and delay bound slice
 	var process_infomap map[string]process_info
 	var delay_bounds []int
-	if len(args) > 2 {
+	if len(args) < 3 {
 		process_infomap, delay_bounds = parse_config("config")
 	} else {
 		process_infomap, delay_bounds = parse_config(args[2])
@@ -111,15 +130,29 @@ func main() {
 	defer source_server.Close()
 
 	// initialize a map of outgoing connections for each non-source process id
-	var outgoing map[string]net.Conn
-	for key, value := range process_infomap {
+	outgoing := make(map[string]net.Conn)
+	/*for key, value := range process_infomap {
 		if key != self {
 			outgoing[key] = initialize_outgoing(value)
 		}
-	}
-	for {
+	}*/
 
-		select {}
+	// activate reciever
+	go unicast_recieve(source_server)
+
+	for {
+		reader := bufio.NewReader(os.Stdin)
+		text, _ := reader.ReadString('\n')
+		going_to, text := process_send(text)
+
+		go func () {
+			if _, ok := outgoing[going_to]; !ok {
+				outgoing[going_to] = initialize_outgoing(process_infomap[going_to])
+			}
+			time.Sleep(time.Duration(rand.Intn(delay_bounds[1]-delay_bounds[0]) + delay_bounds[0])*time.Millisecond)
+			unicast_send(outgoing[going_to], text)
+		}()
+		
 	}
 
 }
