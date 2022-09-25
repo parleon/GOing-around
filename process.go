@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"net"
@@ -19,14 +20,12 @@ type process_info struct {
 
 func process_message(message string) string {
 	mparsed := strings.SplitN(message, " ", 2)
-	return `Recieved "` + mparsed[1] + `" from process ` + mparsed[0] + `, system time is` +  time.Now().String()
+	return `Recieved "` + strings.TrimSuffix(mparsed[1], "\n") + `" from process ` + mparsed[0] + `, system time is` + time.Now().String()
 }
 
 func process_send(message string) (string, string) {
 	message = strings.TrimSuffix(message, "\n")
 	mparsed := strings.SplitN(message, " ", 3)
-	
-	fmt.Println(mparsed[2] + mparsed[1] + mparsed[0])
 	return mparsed[1], mparsed[2]
 }
 
@@ -47,8 +46,16 @@ func unicast_recieve(source net.Listener) {
 
 		go func(conn net.Conn) {
 			for {
-				message, _ := bufio.NewReader(conn).ReadString('\n')
-				fmt.Println(process_message(message))
+				message, err := bufio.NewReader(conn).ReadString('\n')
+
+				if err == io.EOF {
+					fmt.Println("connection to " + conn.LocalAddr().String() + " has shut down, please reboot program to reestablish connection")
+					conn.Close()
+				}
+
+				if err == nil {
+					fmt.Println(process_message(message))
+				}
 			}
 		}(conn)
 
@@ -64,7 +71,7 @@ func initialize_source(info process_info) net.Listener {
 }
 
 func initialize_outgoing(info process_info) net.Conn {
-	conn, err := net.Dial("tcp", info.ip + ":" + info.port)
+	conn, err := net.Dial("tcp", info.ip+":"+info.port)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -131,11 +138,6 @@ func main() {
 
 	// initialize an empty map to store active outgoing connections
 	outgoing := make(map[string]net.Conn)
-	/*for key, value := range process_infomap {
-		if key != self {
-			outgoing[key] = initialize_outgoing(value)
-		}
-	}*/
 
 	// activate reciever
 	go unicast_recieve(source_server)
@@ -145,14 +147,15 @@ func main() {
 		text, _ := reader.ReadString('\n')
 		going_to, text := process_send(text)
 		text = self + " " + text
-		go func () {
+		go func() {
 			if _, ok := outgoing[going_to]; !ok {
 				outgoing[going_to] = initialize_outgoing(process_infomap[going_to])
 			}
-			time.Sleep(time.Duration(rand.Intn(delay_bounds[1]-delay_bounds[0]) + delay_bounds[0])*time.Millisecond)
+			fmt.Println("sending + " + text + " to " + going_to + ". System time is " + time.Now().String())
+			time.Sleep(time.Duration(rand.Intn(delay_bounds[1]-delay_bounds[0])+delay_bounds[0]) * time.Millisecond)
 			unicast_send(outgoing[going_to], text)
 		}()
-		
+
 	}
 
 }
