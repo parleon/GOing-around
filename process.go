@@ -18,15 +18,15 @@ type process_info struct {
 	port string
 }
 
-func process_message(message string) string {
+func process_received_m(message string) string {
 	mparsed := strings.SplitN(message, " ", 2)
-	return `Recieved "` + strings.TrimSuffix(mparsed[1], "\n") + `" from process ` + mparsed[0] + `, system time is` + time.Now().String()
+	return `Recieved "` + strings.TrimSuffix(mparsed[1], "\n") + `" from process ` + mparsed[0] + `, system time is ` + time.Now().Format("15:04:05.000000")
 }
 
-func process_send(message string) (string, string) {
-	message = strings.TrimSuffix(message, "\n")
-	mparsed := strings.SplitN(message, " ", 3)
-	return mparsed[1], mparsed[2]
+func process_send_c(command string) (string, string) {
+	command = strings.TrimSuffix(command, "\n")
+	cparsed := strings.SplitN(command, " ", 3)
+	return cparsed[1], cparsed[2]
 }
 
 func unicast_send(destination net.Conn, message string) {
@@ -39,22 +39,25 @@ func unicast_send(destination net.Conn, message string) {
 // assigns connections to individual reader goroutines that route messages into the proper channel
 func unicast_recieve(source net.Listener) {
 	for {
+
+		// accept incoming connections
 		conn, err := source.Accept()
 		if err != nil {
 			log.Fatal(err)
 		}
 
+		// pass connection into subproccess to handle incoming messages
 		go func(conn net.Conn) {
 			for {
 				message, err := bufio.NewReader(conn).ReadString('\n')
 
 				if err == io.EOF {
-					fmt.Println("connection to " + conn.LocalAddr().String() + " has shut down, please reboot program to reestablish connection")
+					fmt.Println("connection to " + conn.LocalAddr().String() + " has shut down, please reboot program to re-establish connection")
 					conn.Close()
 				}
 
 				if err == nil {
-					fmt.Println(process_message(message))
+					fmt.Println(process_received_m(message))
 				}
 			}
 		}(conn)
@@ -80,6 +83,7 @@ func initialize_outgoing(info process_info) net.Conn {
 
 // parse_config takes the path pointing to a config file and translates it into a map indexed by process id containing process_info structs
 func parse_config(path string) (map[string]process_info, []int) {
+
 	// initialize empty proccess map
 	processes := make(map[string]process_info)
 
@@ -126,10 +130,13 @@ func main() {
 	// get procress_info map and delay bound slice
 	var process_infomap map[string]process_info
 	var delay_bounds []int
-	if len(args) < 3 {
+	switch len(args) {
+	case 2:
 		process_infomap, delay_bounds = parse_config("config")
-	} else {
+	case 3:
 		process_infomap, delay_bounds = parse_config(args[2])
+	default:
+		log.Fatal("\nusage: ./process <id> <optional: config path>\n")
 	}
 
 	// assign current process to listen to the port defined by id provided as command line argument
@@ -142,18 +149,26 @@ func main() {
 	// activate reciever
 	go unicast_recieve(source_server)
 
+	// parse stdin for send commands
 	for {
+
+		// parse input in stdin into necessary strings
 		reader := bufio.NewReader(os.Stdin)
-		text, _ := reader.ReadString('\n')
-		going_to, text := process_send(text)
-		text = self + " " + text
+		input, _ := reader.ReadString('\n')
+		going_to, raw_text := process_send_c(input)
+		text_with_header := self + " " + raw_text
+
+		// handle simulated delay and actual send in a separate goroutine to prevent blocking
 		go func() {
+
+			// establish outgoing connection if not established yet
 			if _, ok := outgoing[going_to]; !ok {
-				outgoing[going_to] = initialize_outgoing(process_infomap[going_to])
+				outgoing[going_to] = initialize_outgoing(process_infomap[going_to]) // this may not be safe
 			}
-			fmt.Println("sending + " + text + " to " + going_to + ". System time is " + time.Now().String())
+			fmt.Println(`sending "` + raw_text + `" to ` + going_to + ". System time is " + time.Now().Format("15:04:05.000000"))
 			time.Sleep(time.Duration(rand.Intn(delay_bounds[1]-delay_bounds[0])+delay_bounds[0]) * time.Millisecond)
-			unicast_send(outgoing[going_to], text)
+			unicast_send(outgoing[going_to], text_with_header)
+
 		}()
 
 	}
