@@ -37,19 +37,19 @@ The unicast receiver requires an initialized `net.Listener` as a parameter which
 ### additional notes on design choices: 
 in order for the recieving instance to know which instance sent a message, a header is included in each message with the sender id.
 
-### config 
+### config file
 pattern:  
-[lower delay bound] [upper delay bound]  
-[id] [ip] [port]  
-...  
-[id] [ip] [port]  
+>[lower delay bound] [upper delay bound]  
+>[id] [ip] [port]  
+>...  
+>[id] [ip] [port]  
   
 example:  
-100 500  
-1 127.0.0.1 4069  
-2 127.0.0.1 4070  
-3 127.0.0.1 4071  
-4 127.0.0.1 4072  
+>100 500  
+>1 127.0.0.1 4069  
+>2 127.0.0.1 4070  
+>3 127.0.0.1 4071  
+>4 127.0.0.1 4072  
 
 ### program execution flow
 ![main process glow](main-chart.jpeg)
