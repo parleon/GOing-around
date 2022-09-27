@@ -12,8 +12,8 @@ To initialize an instance of the messenger, run `./proccess <id> <OPTIONAL: conf
 this will start an instance with properties corresponding to the given id in config.
 By default, the config path routes to "config" in the working directory.
 A message is sent by entering the input `send <id> <message>` into the standard input of a running instance. 
-an instance must be running with the id being sent to in the send command for the message to be received.
-messages simulate a random latency with bounds outlined on in the first line of config.
+An instance must be running with the id being sent to in the send command for the message to be received.
+Messages simulate a random latency with bounds in milliseconds outlined on in the first line of config.
 
 ### Main Subprocess
 The program starts by parsing the config file into a slice with the simulated delay bounds and a proccess_info map indexed by string id.
