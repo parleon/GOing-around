@@ -9,9 +9,11 @@ A simple TCP messenger.
 
 ### Usage guide
 To initialize an instance of the messenger, run `./proccess <id> <OPTIONAL: config path>`
+this will start an instance with properties corresponding to the given id in config.
 By default, the config path routes to "config" in the working directory
-
-A message is sent by entering the input `send <id> <message>` into the standard input of a running instance
+A message is sent by entering the input `send <id> <message>` into the standard input of a running instance. 
+an instance must be running with the id being sent to in the send command for the message to be received.
+messages simulate a random latency with bounds outlined on in the first line of config.
 
 ### Main Subprocess
 The program starts by parsing the config file into a slice with the simulated delay bounds and a proccess_info map indexed by string id.
@@ -35,5 +37,19 @@ The unicast receiver requires an initialized `net.Listener` as a parameter which
 ### additional notes on design choices: 
 in order for the recieving instance to know which instance sent a message, a header is included in each message with the sender id.
 
+### config 
+pattern:
+[lower delay bound] [upper delay bound]
+[id] [ip] [port]
+...
+[id] [ip] [port]
 
+example:
+100 500
+1 127.0.0.1 4069
+2 127.0.0.1 4070
+3 127.0.0.1 4071
+4 127.0.0.1 4072
 
+### program execution flow
+![main process glow](main-chart.jpeg)
