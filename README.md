@@ -10,7 +10,7 @@ A simple TCP messenger.
 ### Usage guide
 To initialize an instance of the messenger, run `./proccess <id> <OPTIONAL: config path>`
 this will start an instance with properties corresponding to the given id in config.
-By default, the config path routes to "config" in the working directory
+By default, the config path routes to "config" in the working directory.
 A message is sent by entering the input `send <id> <message>` into the standard input of a running instance. 
 an instance must be running with the id being sent to in the send command for the message to be received.
 messages simulate a random latency with bounds outlined on in the first line of config.
