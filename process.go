@@ -19,14 +19,17 @@ type process_info struct {
 }
 
 func process_received_m(message string) string {
-	mparsed := strings.SplitN(message, " ", 2)
-	return `Recieved "` + strings.TrimSuffix(mparsed[1], "\n") + `" from process ` + mparsed[0] + `, system time is ` + time.Now().Format("15:04:05.000000")
-}
 
-func process_send_c(command string) (string, string) {
-	command = strings.TrimSuffix(command, "\n")
-	cparsed := strings.SplitN(command, " ", 3)
-	return cparsed[1], cparsed[2]
+	fields := strings.Fields(message)
+	source_num := fields[0]
+	message = ""
+	// Reconstruct message from fields splice
+	for i := 1; i < len(fields); i++ {
+		message = message + fields[i] + " "
+	}
+	message = strings.TrimSpace(message)
+
+	return "Received \"" + message + "\" from process " + source_num + ", system time is " + time.Now().Format("15:04:05.000000")
 }
 
 func unicast_send(destination net.Conn, message string) {
@@ -154,20 +157,30 @@ func main() {
 
 		// parse input in stdin into necessary strings
 		reader := bufio.NewReader(os.Stdin)
-		input, _ := reader.ReadString('\n')
-		going_to, raw_text := process_send_c(input)
-		text_with_header := self + " " + raw_text
+		text, _ := reader.ReadString('\n')
+		fields := strings.Fields(text)
+		message := ""
+
+		// Checks to see if user included 'send' in input
+		if fields[0] != "send" {
+			continue
+		}
+		// Reconstruct message from fields splice
+		for i := 2; i < len(fields); i++ {
+			message = message + fields[i] + " "
+		}
+		message = strings.TrimSpace(message)
 
 		// handle simulated delay and actual send in a separate goroutine to prevent blocking
 		go func() {
 
 			// establish outgoing connection if not established yet
-			if _, ok := outgoing[going_to]; !ok {
-				outgoing[going_to] = initialize_outgoing(process_infomap[going_to]) // this may not be safe
+			if _, ok := outgoing[fields[1]]; !ok {
+				outgoing[fields[1]] = initialize_outgoing(process_infomap[fields[1]]) // this may not be safe
 			}
-			fmt.Println(`sending "` + raw_text + `" to ` + going_to + ". System time is " + time.Now().Format("15:04:05.000000"))
+			fmt.Println("Sending \"" + message + "\" to process " + fields[1] + ". System time is " + time.Now().Format("15:04:05.000000"))
 			time.Sleep(time.Duration(rand.Intn(delay_bounds[1]-delay_bounds[0])+delay_bounds[0]) * time.Millisecond)
-			unicast_send(outgoing[going_to], text_with_header)
+			unicast_send(outgoing[fields[1]], self+" "+message)
 
 		}()
 
