@@ -4,17 +4,20 @@ A simple TCP messenger.
 
 ### Definitions: 
  - instance: an instance refers to a program and all of its running subprocesses that is instantiated after executing the initializing command `./process ...`
- - Subprocess: refers to a goroutine that is spawned and runs throughout the entire runtime of the program. This includes the unicast_reciever, and all outgoing connections, as well as the main process.
- - goroutine: when a goroutine is referred to as a goroutine, it means the purpose of the thread is short lived. (e.g., a send command is processed in its own goroutine to ensure its non-blocking)
+ - Subprocess: refers to a goroutine that is spawned and runs throughout the entire runtime of the program. This includes the unicast_reciever, all outgoing connections, as well as the main process.
+ - goroutine: when referring to a goroutine as such, it means the purpose of the thread is short lived . (e.g., a send command is processed in its own goroutine to ensure its non-blocking)
 
+### Usage guide
 To initialize an instance of the messenger, run `./proccess <id> <OPTIONAL: config path>`
 By default, the config path routes to "config" in the working directory
 
+A message is sent by entering the input `send <id> <message>` into the standard input of a running instance
+
 ### Main Subprocess
-The program starts by parsing the config file into a slice of the simulated delay bounds and a proccess_info map indexed by string id
-The main subprocess initializes a server listener for the source port associated with the id provided, as well as an empty map to track outgoing connections.
+The program starts by parsing the config file into a slice with the simulated delay bounds and a proccess_info map indexed by string id.
+The main subprocess then initializes a server listener for the source port associated with the id provided in the command arguments, as well as an empty map to track outgoing connections.
 Then another subprocess is spawned off main, "unicast-reciever" to handle incoming messages. 
-The main subprocess's purpose after completing startup tasks is to listen to stdinput and create "unicast_send" goroutines that handle the sending of messages
+The main subprocess's purpose after completing startup tasks is to listen to stdinput and spawn "unicast_send" goroutines that handle the sending of messages
 
 ### unicast_send reference: 
 The unicast_send reference is inclusive of all code encapsulated in the goroutine that contains the call to the "unicast_send" function.
@@ -29,7 +32,8 @@ The unicast receiver requires an initialized `net.Listener` as a parameter which
         port string
     }
 
-A message is sent by entering the input `send <id> <message>` into the standard input of a running instance
+### additional notes on design choices: 
+in order for the recieving instance to know which instance sent a message, a header is included in each message with the sender id.
 
 
 
